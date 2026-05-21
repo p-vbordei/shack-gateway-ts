@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "@jest/globals";
-import { mkdtempSync, writeFileSync } from "fs";
+import { mkdtempSync, writeFileSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { WorkspaceSandbox } from "../src/sandbox.js";
@@ -55,5 +55,38 @@ describe("WorkspaceSandbox", () => {
   test("non-object arguments are skipped", () => {
     expect(() => sandbox.validateToolArguments("not an object")).not.toThrow();
     expect(() => sandbox.validateToolArguments(null)).not.toThrow();
+  });
+
+  test("path equal to root is allowed", () => {
+    expect(() => sandbox.validatePath(root)).not.toThrow();
+  });
+
+  test("deeply nested existing path is allowed", () => {
+    // Create the nested directory so canonicalize can resolve the real path.
+    const dir = join(root, "a", "b", "c");
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "file.txt");
+    writeFileSync(file, "");
+    expect(() => sandbox.validatePath(file)).not.toThrow();
+  });
+
+  test("all path keys are checked", () => {
+    for (const key of ["directory", "dir", "cwd", "source", "destination", "filePath", "notebookPath"]) {
+      expect(() =>
+        sandbox.validateToolArguments({ [key]: "../escape.txt" }),
+      ).toThrow("directory traversal blocked");
+    }
+  });
+
+  test("array with non-string items does not throw TypeError", () => {
+    expect(() =>
+      sandbox.validateToolArguments({ paths: [1, null, true] }),
+    ).not.toThrow();
+  });
+
+  test("constructor throws for nonexistent root", () => {
+    expect(
+      () => new WorkspaceSandbox("/nonexistent/definitely/not/here_shack_ts"),
+    ).toThrow("does not exist");
   });
 });

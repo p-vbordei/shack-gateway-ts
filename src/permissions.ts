@@ -1,5 +1,14 @@
 /**
  * Declarative permission policy engine.
+ *
+ * The {@link PermissionEngine} evaluates tool calls against a set of allow and
+ * deny rules. Rules follow the syntax `tool_name(subject_pattern)` where the
+ * subject is extracted from a well-known argument key (`command`, `path`,
+ * `url`, etc.).
+ *
+ * Deny rules always take priority. When no rule matches, the configured
+ * `default_decision` applies. `"prompt"` is surfaced as an error because the
+ * gateway has no interactive prompter.
  */
 
 import type { PermissionConfig, DefaultDecision } from "./config.js";

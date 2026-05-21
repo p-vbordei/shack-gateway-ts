@@ -1,5 +1,16 @@
 /**
  * Tool catalog and progressive-discovery meta-tool definitions.
+ *
+ * The {@link ToolCatalog} is the authoritative index of every downstream tool
+ * the gateway knows about. Tools are keyed by their *namespaced* name
+ * (`server__tool`) to avoid collisions when two servers expose identically-
+ * named tools.
+ *
+ * Progressive discovery works by exposing only the four `shack_*` meta-tools
+ * to the client by default. The client calls {@link META_LIST_TOOLS} or
+ * {@link META_DESCRIBE_TOOL} to explore the catalog on demand, then
+ * {@link META_CALL_TOOL} to invoke a specific tool through the security
+ * pipeline.
  */
 
 export const NS_SEP = "__";
@@ -10,6 +21,7 @@ export const META_DESCRIBE_TOOL = "shack_describe_tool";
 export const META_CALL_TOOL = "shack_call_tool";
 export const META_LIST_SERVERS = "shack_list_servers";
 
+/** Returns `true` if `name` refers to a gateway meta-tool (`shack_*`). */
 export function isMetaTool(name: string): boolean {
   return name.startsWith(META_PREFIX);
 }
@@ -38,10 +50,13 @@ function summarize(description: string): string {
   return first;
 }
 
+/** A single downstream tool registered in the {@link ToolCatalog}. */
 export interface CatalogEntry {
+  /** The `server__tool` namespaced identifier used as the tool's public name. */
   namespacedName: string;
   serverName: string;
   originalName: string;
+  /** One-line summary derived from the first sentence of `description`. */
   summary: string;
   description: string;
   inputSchema: unknown;

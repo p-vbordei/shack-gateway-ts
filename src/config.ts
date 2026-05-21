@@ -1,5 +1,10 @@
 /**
  * Gateway configuration loading and defaults.
+ *
+ * Exports the {@link loadConfig} function that reads a JSON config file and
+ * returns a fully-defaulted {@link GatewayConfig}. All fields except
+ * `workspace_root` are optional; omitted fields fall back to the safe defaults
+ * documented on each interface property.
  */
 
 import { readFileSync } from "fs";
@@ -24,22 +29,46 @@ export const DEFAULT_REDACT_FIELDS: string[] = [
   "credentials",
 ];
 
+/** How the gateway presents downstream tools to the connected client. */
 export type ExposeMode = "progressive" | "full";
+
+/** Fallback decision when no allow/deny rule matches a tool call. */
 export type DefaultDecision = "allow" | "deny" | "prompt";
 
+/**
+ * Configuration for a single downstream MCP server process.
+ *
+ * The gateway spawns `command` with `args` at startup and communicates with
+ * it over stdio. `env` entries are merged on top of the gateway's own
+ * environment.
+ */
 export interface ServerConfig {
   command: string;
   args: string[];
   env: Record<string, string>;
 }
 
+/**
+ * Declarative allow/deny rule set with a default fallback decision.
+ *
+ * `deny` rules are evaluated first and always win. When no rule matches,
+ * `default_decision` applies. `"prompt"` surfaces as an error because the
+ * gateway cannot prompt interactively — add an explicit allow rule instead.
+ */
 export interface PermissionConfig {
   default_decision: DefaultDecision;
   allow: string[];
   deny: string[];
 }
 
+/**
+ * Top-level gateway configuration, loaded from a JSON file via {@link loadConfig}.
+ *
+ * Every field except `workspace_root` is optional; omitted fields revert to
+ * their documented defaults.
+ */
 export interface GatewayConfig {
+  /** Absolute path to the project workspace. Path arguments in tool calls are confined here. */
   workspace_root: string;
   expose_mode: ExposeMode;
   pre_tool_hook?: string;
@@ -50,6 +79,12 @@ export interface GatewayConfig {
   servers: Record<string, ServerConfig>;
 }
 
+/**
+ * Read and parse a gateway configuration file.
+ *
+ * @param path - Filesystem path to a JSON config file.
+ * @throws {Error} If the file cannot be read or contains invalid JSON.
+ */
 export function loadConfig(path: string): GatewayConfig {
   let raw: string;
   try {

@@ -1,5 +1,14 @@
 /**
  * Sensitive-field redaction for log output.
+ *
+ * {@link Redactor} walks any JSON-compatible value and replaces the values of
+ * nominated field names with a fixed mask string. Matching is
+ * case-insensitive and applied recursively through nested objects and arrays.
+ * Only field *names* are checked — values are never inspected for secrets.
+ *
+ * This ensures credentials (tokens, passwords, API keys, etc.) never appear
+ * in the gateway's stderr log trace even when arguments are logged for
+ * debugging.
  */
 
 export const MASK = "***REDACTED***";

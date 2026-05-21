@@ -54,4 +54,45 @@ describe("HookRunner", () => {
       runner.runPostToolUse("fs__read", "{}", { content: "x" }, false),
     ).toThrow("leaked secret");
   });
+
+  test("post hook none is passthrough", () => {
+    const runner = new HookRunner("echo '{\"continue\": true}'", undefined);
+    expect(() => runner.runPostToolUse("tool", "{}", { ok: 1 }, false)).not.toThrow();
+  });
+
+  test("nonzero exit code other than 2 is an error", () => {
+    const runner = new HookRunner("exit 1", undefined);
+    expect(() => runner.runPreToolUse("bash", "{}")).toThrow("hook exited with code");
+  });
+
+  test("deny permission decision surfaced", () => {
+    const runner = new HookRunner(
+      `echo '{"continue": true, "hookSpecificOutput": {"permissionDecision": "deny"}}'`,
+      undefined,
+    );
+    const [decision] = runner.runPreToolUse("tool", "{}");
+    expect(decision).toBe("deny");
+  });
+
+  test("ask permission decision surfaced", () => {
+    const runner = new HookRunner(
+      `echo '{"continue": true, "hookSpecificOutput": {"permissionDecision": "ask"}}'`,
+      undefined,
+    );
+    const [decision] = runner.runPreToolUse("tool", "{}");
+    expect(decision).toBe("ask");
+  });
+
+  test("exit code 2 with json reason on stdout uses that reason", () => {
+    const runner = new HookRunner(
+      `echo '{"reason": "custom block reason"}'; exit 2`,
+      undefined,
+    );
+    expect(() => runner.runPreToolUse("bash", "{}")).toThrow("custom block reason");
+  });
+
+  test("invalid JSON stdout raises descriptive error", () => {
+    const runner = new HookRunner("echo 'not json'", undefined);
+    expect(() => runner.runPreToolUse("bash", "{}")).toThrow("invalid JSON");
+  });
 });

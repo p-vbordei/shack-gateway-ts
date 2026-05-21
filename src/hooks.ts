@@ -1,5 +1,14 @@
 /**
  * Pre/post tool-use hook runner.
+ *
+ * Hooks are user-supplied shell commands that run synchronously around every
+ * downstream tool call. A *pre-tool hook* receives the tool name and arguments
+ * on stdin as JSON and can allow, mutate, or block the call. A *post-tool hook*
+ * receives the result and can reject it.
+ *
+ * Exit code 2 is the canonical block signal. Any other non-zero exit is
+ * treated as an execution failure and also fails closed. A hook can emit a
+ * `reason` string on stdout (JSON) or stderr to explain why it blocked.
  */
 
 import { spawnSync } from "child_process";

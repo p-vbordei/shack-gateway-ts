@@ -73,12 +73,84 @@ describe("ToolCatalog", () => {
     const db = summaries.find((s) => s.server === "db")!;
     expect(db.tool_count).toBe(1);
   });
+
+  test("fullToolList includes inputSchema", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("srv", sampleTool("do_thing", "Does a thing"));
+    const list = catalog.fullToolList() as Array<Record<string, unknown>>;
+    expect(list).toHaveLength(1);
+    expect(list[0]["name"]).toBe("srv__do_thing");
+    expect(list[0]["description"]).toBe("Does a thing");
+    expect(list[0]["inputSchema"]).toBeDefined();
+  });
+
+  test("fullToolList is sorted alphabetically", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("z", sampleTool("alpha", "First"));
+    catalog.register("a", sampleTool("zebra", "Second"));
+    const list = catalog.fullToolList() as Array<{ name: string }>;
+    const names = list.map((t) => t.name);
+    expect(names).toEqual([...names].sort());
+  });
+
+  test("names returns sorted list", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("b", sampleTool("tool", "T"));
+    catalog.register("a", sampleTool("tool", "T"));
+    expect(catalog.names()).toEqual(["a__tool", "b__tool"]);
+  });
+
+  test("long description is clipped with ellipsis", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("s", { name: "t", description: "a".repeat(200) });
+    const summary = catalog.get("s__t")!.summary;
+    expect(summary.endsWith("...")).toBe(true);
+    expect(summary.length).toBeLessThanOrEqual(140);
+  });
+
+  test("description split on period", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("s", { name: "t", description: "First sentence. More detail." });
+    expect(catalog.get("s__t")!.summary).toBe("First sentence");
+  });
+
+  test("search is case-insensitive on keyword", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("fs", sampleTool("read_file", "Read a FILE from disk"));
+    expect(catalog.search("FILE", null)).toHaveLength(1);
+    expect(catalog.search("file", null)).toHaveLength(1);
+  });
+
+  test("tool without inputSchema gets default object schema", () => {
+    const catalog = new ToolCatalog();
+    catalog.register("s", { name: "t", description: "desc" });
+    const entry = catalog.get("s__t")!;
+    expect((entry.inputSchema as Record<string, unknown>)["type"]).toBe("object");
+  });
+
+  test("serverSummaries empty catalog returns empty array", () => {
+    const catalog = new ToolCatalog();
+    expect(catalog.serverSummaries()).toHaveLength(0);
+  });
 });
 
 describe("isMetaTool", () => {
   test("recognizes meta tools", () => {
     expect(isMetaTool("shack_list_tools")).toBe(true);
     expect(isMetaTool("filesystem__read_file")).toBe(false);
+  });
+
+  test("shack without underscore is not a meta tool", () => {
+    expect(isMetaTool("shack")).toBe(false);
+  });
+
+  test("empty string is not a meta tool", () => {
+    expect(isMetaTool("")).toBe(false);
+  });
+
+  test("shack_ prefix alone is a meta tool", () => {
+    expect(isMetaTool("shack_")).toBe(true);
+    expect(isMetaTool("shack_anything")).toBe(true);
   });
 });
 
@@ -91,5 +163,12 @@ describe("metaToolSchemas", () => {
     expect(names).toContain(META_DESCRIBE_TOOL);
     expect(names).toContain(META_CALL_TOOL);
     expect(names).toContain(META_LIST_SERVERS);
+  });
+
+  test("each schema has an inputSchema", () => {
+    const schemas = metaToolSchemas() as Array<Record<string, unknown>>;
+    for (const schema of schemas) {
+      expect(schema["inputSchema"]).toBeDefined();
+    }
   });
 });

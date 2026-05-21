@@ -1,5 +1,11 @@
 /**
- * Workspace sandbox: confines path arguments to the configured root.
+ * Workspace sandbox: confines filesystem path arguments to the configured root.
+ *
+ * {@link WorkspaceSandbox} is Layer 1 of the gateway's security pipeline. It
+ * intercepts tool call arguments, identifies any that carry filesystem paths,
+ * and verifies each one lies within the `workspace_root`. Directory-traversal
+ * attempts (`..` components, absolute paths outside the root, symlinks that
+ * escape the tree) are rejected before the call reaches a downstream server.
  */
 
 import { realpathSync, existsSync, statSync } from "fs";
